@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Split Screen with YouTube Search</title>
+<title>Youtube Karaoke</title>
 <style>
     /* Style for the left and right sections */
     .split-container {
@@ -31,21 +31,22 @@
     	overflow: auto; /* Enable scrolling if content overflows */
     	position: relative;
     	height: 120px; /* Set the height to 120px */
-    	background-color: #E8EFCF; /* Light gray background */
+    	background-color: #333; /* Light gray background */
     	border-radius: 5px; /* Rounded corners */
     	padding: 10px; /* Add some padding */
     	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Add a subtle shadow */
     }
 
     #reserve-songs-section h2 {
-    margin-top: 0; /* Remove top margin for consistency */
+    margin-top:s 0; /* Remove top margin for consistency */
     font-size: 1.2rem; /* Increase font size */
-    color: #333; /* Dark text color */
+    color: #f0f0f0; /* Dark text color */
 }
 
 .reserved-video-list {
     list-style-type: none;
     padding: 0;
+    background-color: #333; /* Light gray background */
 }
 
 .reserved-video-list-item {
@@ -53,6 +54,10 @@
     align-items: center;
     padding: 5px 0;
     border-bottom: 1px solid #ddd; /* Add separator between items */
+    font-size: 18px; /* Adjust the font size */
+    font-weight: bold; /* Adjust the font weight */
+    font-family: 'Arial', sans-serif; /* Adjust the font family */
+    background-color: #333; /* Light gray background */
 }
 
 .reserved-video-thumbnail {
@@ -100,7 +105,7 @@
         flex: 1; /* Right section takes up 1/4 of the space */
         display: flex;
         flex-direction: column;
-        background-color: #DBA979;
+        background-color: #333;
     }
     .split-section iframe {
         width: 100%;
@@ -112,17 +117,23 @@
         padding: 0;
         flex: 1;
         overflow-y: auto;
-	background-color: #DBA979;
+	background-color: black;
     }
     .video-list-item {
         margin-bottom: 10px;
         cursor: pointer;
         display: flex;
         align-items: center;
+        font-size: 18px; /* Adjust the font size */
+        font-weight: bold; /* Adjust the font weight */
+        background-color: black; /* Light gray background */
+        color: #f0f0f0;
+        border: 2px solid black; /* Add a 2px solid black border */
+    
 	
     }
     .video-list-item:hover {
-        background-color: #ECCA9C;
+        background-color: #333;
     }
     .video-thumbnail {
         width: 120px;
@@ -132,6 +143,9 @@
     .search-box {
         margin-bottom: 10px;
         margin-right: 5px; /* Add some margin to the right */
+        font-size: 20px; /* Increase font size to 16px */
+        padding: 10px; /* Increase padding */
+        width: 400px; /* Increase width */
     }
     .search-button {
         margin-bottom: 10px;
@@ -139,7 +153,7 @@
         padding: 5px 10px;
     }
     .reserved {
-        background-color: #f0f0f0; /* Background color indicating reserved video */
+        background-color: black; /* Background color indicating reserved video */
     }
     .remove-button {
         margin-left: 10px; /* Align button to the left */
@@ -315,7 +329,12 @@ function addOrPlayVideo(videoId, thumbnailUrl, videoTitle, listItem) {
 
     // Function to play a video in the Now Playing section
     function playNowPlayingVideo(videoId) {
-        player.loadVideoById(videoId);
+    player.loadVideoById({
+        videoId: videoId,
+        playerVars: {
+            'rel': 1 // Show related videos
+            }
+        });
     }
 
     // Function to play the next video in the Reserved Songs list
