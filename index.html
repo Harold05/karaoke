@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Split Screen with YouTube Search</title>
+<style>
+    /* Style for the left and right sections */
+    .split-container {
+        display: flex;
+        height: 100vh; /* Make the container take up the full height of the viewport */
+        position: relative; /* Position relative to allow absolute positioning of the line */
+    }
+    .split-section {
+        overflow: auto; /* Enable scrolling if content overflows */
+        position: relative; /* Position relative for child elements */
+    }
+    #left-section {
+        flex: 3; /* Left section takes up 3/4 of the space */
+        display: flex;
+        flex-direction: column;
+    }
+    #now-playing-section {
+        flex: 2; /* Now Playing section takes up 2/3 of the left section */
+        overflow: auto; /* Enable scrolling if content overflows */
+        background-color: #AFD198;
+    }
+
+    #reserve-songs-section {
+    	flex: 1; /* Reserve Songs section takes up 1/3 of the left section */
+    	overflow: auto; /* Enable scrolling if content overflows */
+    	position: relative;
+    	height: 120px; /* Set the height to 120px */
+    	background-color: #E8EFCF; /* Light gray background */
+    	border-radius: 5px; /* Rounded corners */
+    	padding: 10px; /* Add some padding */
+    	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Add a subtle shadow */
+    }
+
+    #reserve-songs-section h2 {
+    margin-top: 0; /* Remove top margin for consistency */
+    font-size: 1.2rem; /* Increase font size */
+    color: #333; /* Dark text color */
+}
+
+.reserved-video-list {
+    list-style-type: none;
+    padding: 0;
+}
+
+.reserved-video-list-item {
+    display: flex;
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px solid #ddd; /* Add separator between items */
+}
+
+.reserved-video-thumbnail {
+    width: 80px;
+    height: 60px;
+    margin-right: 10px;
+}
+
+.reserved-video-details {
+    flex: 1;
+}
+
+.reserved-video-title {
+    font-weight: bold;
+    color: #555; /* Dark gray text color */
+    font-style: Nunito;
+}
+
+.remove-button,
+.play-button {
+    padding: 5px 10px;
+    margin-left: auto; /* Align buttons to the right */
+    cursor: pointer;
+    background-color: #007bff; /* Blue background color */
+    color: #fff; /* White text color */
+    border: none;
+    border-radius: 3px;
+}
+
+.remove-button:hover,
+.play-button:hover {
+    background-color: #0056b3; /* Darker blue on hover */
+}	
+	
+    .split-line {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px; /* Height of the line */
+        background-color: black; /* Color of the line */
+        z-index: 1; /* Ensure the line appears above the sections */
+    }
+    #right-section {
+        flex: 1; /* Right section takes up 1/4 of the space */
+        display: flex;
+        flex-direction: column;
+        background-color: #DBA979;
+    }
+    .split-section iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+    }
+    .video-list {
+        list-style-type: none;
+        padding: 0;
+        flex: 1;
+        overflow-y: auto;
+	background-color: #DBA979;
+    }
+    .video-list-item {
+        margin-bottom: 10px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+	
+    }
+    .video-list-item:hover {
+        background-color: #ECCA9C;
+    }
+    .video-thumbnail {
+        width: 120px;
+        height: 90px;
+        margin-right: 10px;
+    }
+    .search-box {
+        margin-bottom: 10px;
+        margin-right: 5px; /* Add some margin to the right */
+    }
+    .search-button {
+        margin-bottom: 10px;
+        cursor: pointer;
+        padding: 5px 10px;
+    }
+    .reserved {
+        background-color: #f0f0f0; /* Background color indicating reserved video */
+    }
+    .remove-button {
+        margin-left: 10px; /* Align button to the left */
+    }
+    .play-button {
+        margin-left: auto; /* Align button to the right */
+    }
+</style>
+</head>
+<body>
+
+<div class="split-container">
+    <div class="split-section" id="left-section">
+        <!-- Now Playing section -->
+        <div id="now-playing-section">
+            <!-- <h2>Now Playing</h2> -->
+            <div id="player"></div>
+        </div>
+        <!-- Reserve Songs section -->
+        <div id="reserve-songs-section">
+            <h2>Reserved Songs <span id="reserved-songs-counter">(0)</span></h2>
+            <!-- Reserved videos will be displayed here -->
+            <ul id="reserved-videos" class="video-list"></ul>
+            <!-- Split line between now playing and reserve songs sections -->
+            <div class="split-line"></div>
+        </div>
+    </div>
+    <div class="split-section" id="right-section">
+        <!-- YouTube search box -->
+        <input type="text" class="search-box" id="search-box" placeholder="Search YouTube">
+        <!-- Search button -->
+        <button class="search-button" onclick="fetchYouTubeSearchResults()">Search</button>
+        <!-- YouTube search list -->
+        <ul class="video-list" id="video-list"></ul>
+    </div>
+</div>
+
+<script>
+    // Array to store reserved videos
+    let reservedVideos = [];
+    // Index of the currently playing video in the reserved videos list
+    let currentVideoIndex = 0;
+    // Global variable to store the YouTube player instance
+    let player;
+
+    // Function to split the screen vertically
+    function splitScreen() {
+        const leftSection = document.getElementById('left-section');
+        const rightSection = document.getElementById('right-section');
+
+        // Calculate the width of each section
+        const screenWidth = window.innerWidth;
+        const leftSectionWidth = screenWidth * 0.75; // 3/4 of the screen width
+        const rightSectionWidth = screenWidth * 0.25; // 1/4 of the screen width
+
+        // Apply width to each section
+        leftSection.style.width = leftSectionWidth + 'px';
+        rightSection.style.width = rightSectionWidth + 'px';
+    }
+
+    // Function to fetch and display YouTube search results
+    function fetchYouTubeSearchResults() {
+        const apiKey = 'AIzaSyDAuiTHj5zY6rh0TSzmDcKGoDmjNDlAEbI';
+        const searchBox = document.getElementById('search-box');
+        const query = searchBox.value.trim();
+        const url = 'https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=30&q=' + query + '&key=' + apiKey;
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                const videoList = document.getElementById('video-list');
+                videoList.innerHTML = ''; // Clear previous list
+                data.items.forEach(item => {
+                    const videoId = item.id.videoId;
+                    const videoTitle = item.snippet.title;
+                    const thumbnailUrl = item.snippet.thumbnails.medium.url;
+
+                    // Check if the video is unavailable
+                    if (!item.snippet.title.includes('Video unavailable')) {
+                        const listItem = document.createElement('li');
+                        listItem.classList.add('video-list-item');
+                        // Check if the video is already reserved
+                        if (reservedVideos.some(video => video.id === videoId)) {
+                            listItem.classList.add('reserved');
+                        }
+                        listItem.innerHTML = `
+                            <img class="video-thumbnail" src="${thumbnailUrl}" alt="Thumbnail">
+                            <div>${videoTitle}</div>
+                        `;
+                        listItem.addEventListener('click', function() {
+                            // Add or play the video based on reserved list and now playing status
+                            addOrPlayVideo(videoId, thumbnailUrl, videoTitle, listItem);
+                        });
+                        videoList.appendChild(listItem);
+                    }
+                });
+            })
+            .catch(error => console.error('Error fetching YouTube search results:', error));
+    }
+
+    // Function to add or play a video based on reserved list and now playing status
+function addOrPlayVideo(videoId, thumbnailUrl, videoTitle, listItem) {
+    // Check if a video is currently playing and Reserved Songs list is empty
+    if (!player.getPlayerState() && reservedVideos.length === 0) {
+        // Play the selected video in the Now Playing section
+        playNowPlayingVideo(videoId);
+    } else {
+        // Check if the video is already reserved
+        const reservedIndex = reservedVideos.findIndex(video => video.id === videoId);
+        if (reservedIndex === -1) {
+            // Add the video to the reserved list
+            addReservedVideo(videoId, thumbnailUrl, videoTitle, listItem);
+        } else {
+            // Play the reserved video
+            playNowPlayingVideo(videoId);
+            // Remove the video from the Reserved Songs list
+            const reservedVideosList = document.getElementById('reserved-videos');
+            reservedVideosList.removeChild(reservedVideosList.childNodes[reservedIndex]);
+            reservedVideos.splice(reservedIndex, 1);
+            // Update the reserved songs counter
+            updateReservedSongsCounter();
+        }
+    }
+}
+
+
+    // Function to add a reserved video to the reserved list
+    function addReservedVideo(videoId, thumbnailUrl, videoTitle, listItem) {
+        const reservedVideosList = document.getElementById('reserved-videos');
+        const video = { id: videoId, title: videoTitle, thumbnail: thumbnailUrl };
+        reservedVideos.push(video);
+        listItem.classList.add('reserved');
+        const removeButton = document.createElement('button');
+        removeButton.innerText = 'Remove';
+        removeButton.classList.add('remove-button');
+        removeButton.addEventListener('click', function(event) {
+            event.stopPropagation(); // Prevent click event on the list item
+            removeReservedVideo(reservedVideos.indexOf(video), listItem);
+            // Update the reserved songs counter
+            updateReservedSongsCounter();
+        });
+        const playButton = document.createElement('button');
+        playButton.innerText = 'Play';
+        playButton.classList.add('play-button');
+        playButton.addEventListener('click', function(event) {
+            event.stopPropagation(); // Prevent click event on the list item
+            playNowPlayingVideo(videoId);
+            removeReservedVideo(reservedVideos.indexOf(video), listItem);
+            // Update the reserved songs counter
+            updateReservedSongsCounter();
+        });
+        listItem.appendChild(playButton);
+        listItem.appendChild(removeButton); // Swap the order of buttons
+        reservedVideosList.appendChild(listItem);
+        // Update the reserved songs counter
+        updateReservedSongsCounter();
+    }
+
+    // Function to remove a reserved video from the reserved list
+    function removeReservedVideo(index, listItem) {
+        const reservedVideosList = document.getElementById('reserved-videos');
+        reservedVideos.splice(index, 1);
+        reservedVideosList.removeChild(listItem);
+        // Update the reserved songs counter
+        updateReservedSongsCounter();
+    }
+
+    // Function to update the reserved songs counter
+    function updateReservedSongsCounter() {
+        const reservedSongsCounter = document.getElementById('reserved-songs-counter');
+        reservedSongsCounter.innerText = `(${reservedVideos.length})`;
+    }
+
+    // Function to play a video in the Now Playing section
+    function playNowPlayingVideo(videoId) {
+        player.loadVideoById(videoId);
+    }
+
+    // Function to play the next video in the Reserved Songs list
+	function playNextVideo() {
+    // Check if there are any reserved videos left
+    if (reservedVideos.length > 0) {
+        // Play the first reserved video
+        playNowPlayingVideo(reservedVideos[0].id);
+        // Remove the played video from the Reserved Songs list
+        const reservedVideosList = document.getElementById('reserved-videos');
+        reservedVideosList.removeChild(reservedVideosList.firstChild);
+        reservedVideos.shift();
+        // Update the reserved songs counter
+        updateReservedSongsCounter();
+    } else {
+        // No more reserved videos, clear the Now Playing section
+        const nowPlayingVideo = document.getElementById('now-playing-video');
+        nowPlayingVideo.src = '';
+        // Reset the current video index
+        currentVideoIndex = 0;
+    }
+}
+
+
+    // Call the splitScreen function when the page loads
+    window.onload = function() {
+        splitScreen();
+        // Initialize the YouTube player when the window loads
+        player = new YT.Player('player', {
+            height: '360',
+            width: '640',
+            events: {
+                'onReady': onPlayerReady,
+                'onStateChange': onPlayerStateChange
+            }
+        });
+    };
+
+    // Call the splitScreen function again when the window is resized
+    window.onresize = splitScreen;
+
+    // Listen for click on the search button
+    document.querySelector('.search-button').addEventListener('click', fetchYouTubeSearchResults);
+
+    // Listen for keypress event on the search box
+    document.getElementById('search-box').addEventListener('keypress', function(event) {
+        if (event.key === 'Enter') {
+            fetchYouTubeSearchResults();
+        }
+    });
+
+    // Function to handle when the YouTube player is ready
+    function onPlayerReady(event) {
+        // Player is ready
+    }
+
+    // Function to handle state changes in the YouTube player
+    function onPlayerStateChange(event) {
+        if (event.data == YT.PlayerState.ENDED) {
+            // Video ended, play next video
+            playNextVideo();
+        }
+    }
+</script>
+
+<!-- Load the YouTube Player API script -->
+<script src="https://www.youtube.com/iframe_api"></script>
+
+</body>
+</html>
