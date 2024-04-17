@@ -274,16 +274,15 @@
     
 
     // Function to fetch and display YouTube search results
-function fetchYouTubeSearchResults(query, targetListId) {
-    
+    function fetchYouTubeSearchResults(query, targetListId) {
     const searchButton = document.querySelector('.search-button');
     // Update the search button text to indicate searching
     searchButton.innerText = `Searching '${query}'...`;
-
-    //const apiKey = 'AIzaSyDAuiTHj5zY6rh0TSzmDcKGoDmjNDlAEbI';
     const apiKey = apiKeys[currentApiKeyIndex]; // Get the current API key
     currentApiKeyIndex = (currentApiKeyIndex + 1) % apiKeys.length; // Move to the next API key or loop back to the first one
 
+    // Define the IDs of the channels to be excluded
+    const excludedChannels = ['UCwTRjvjVge51X-ILJ4i22ew', 'UCbqcG1rdt9LMwOJN4PyGTKg', 'UCh7Or5kEc7XGqVUspaYlHDA', 'UCEPMr38BayMI5A_bXTe1Mag', 'UCqh7JrHXYav2_kk5Ag793BA', 'UCwzfME3DQ3Z3YgYypHbKExg', 'UCMh_iT_SIlsWEGXCwM__yZQ']; // Add more channel IDs as needed
 
     const url = 'https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=30&q=' + query + '&key=' + apiKey;
 
@@ -296,31 +295,40 @@ function fetchYouTubeSearchResults(query, targetListId) {
                 const videoId = item.id.videoId;
                 const videoTitle = item.snippet.title;
                 const thumbnailUrl = item.snippet.thumbnails.medium.url;
+                const channelId = item.snippet.channelId;
 
-                // Check if the video is unavailable
-                if (!item.snippet.title.includes('Video unavailable')) {
-                    const listItem = document.createElement('li');
-                    listItem.classList.add('video-list-item');
-                    // Check if the video is already reserved
-                    if (reservedVideos.some(video => video.id === videoId)) {
-                        listItem.classList.add('reserved');
+                // Check if the video is from an excluded channel
+                if (!excludedChannels.includes(channelId)) {
+                    // Check if the video is unavailable
+                    if (!item.snippet.title.includes('Video unavailable')) {
+                        const listItem = document.createElement('li');
+                        listItem.classList.add('video-list-item');
+                        // Check if the video is already reserved
+                        if (reservedVideos.some(video => video.id === videoId)) {
+                            listItem.classList.add('reserved');
+                        }
+                        listItem.innerHTML = `
+                            <img class="video-thumbnail" src="${thumbnailUrl}" alt="Thumbnail">
+                            <div>${videoTitle}</div>
+                        `;
+                        listItem.addEventListener('click', function() {
+                            // Add or play the video based on reserved list and now playing status
+                            addOrPlayVideo(videoId, thumbnailUrl, videoTitle, listItem);
+                        });
+                        videoList.appendChild(listItem);
                     }
-                    listItem.innerHTML = `
-                        <img class="video-thumbnail" src="${thumbnailUrl}" alt="Thumbnail">
-                        <div>${videoTitle}</div>
-                    `;
-                    listItem.addEventListener('click', function() {
-                        // Add or play the video based on reserved list and now playing status
-                        addOrPlayVideo(videoId, thumbnailUrl, videoTitle, listItem);
-                    });
-                    videoList.appendChild(listItem);
-                    searchButton.innerText = 'Search';
                 }
             });
+            // Update the search button text back to "Search" after displaying results
+            searchButton.innerText = 'Search';
         })
-        .catch(error => console.alert('Error fetching YouTube search results:', error));
-        searchButton.innerText = 'Search';
+        .catch(error => {
+            console.alert('Error fetching YouTube search results:', error);
+            // Update the search button text back to "Search" in case of error
+            searchButton.innerText = 'Search';
+        });
 }
+
 
 
     // Function to add or play a video based on reserved list and now playing status
