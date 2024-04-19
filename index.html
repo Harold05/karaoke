@@ -54,9 +54,13 @@
 }
 
 .reserved-songs-half h3 {
+    position: sticky; /* Fix the heading element in its position */
+    top: 0; /* Position at the top of the container */
     margin-top: 0; /* Remove top margin for consistency */
     font-size: 1.2rem; /* Increase font size */
     color: #f0f0f0; /* Dark text color */
+    background-color: #333; /* Match the background color of the container */
+    z-index: 1; /* Ensure the heading appears above the scrolling content */
 }
 
 .reserved-video-list {
@@ -213,7 +217,7 @@
         <!-- YouTube search box -->
         <input type="text" class="search-box" id="search-box" placeholder="Search YouTube">
         <!-- Search button -->
-        <button class="search-button">Search</button>
+        <button class="search-button">Karaoke Search</button>
         <!-- YouTube search list -->
         <ul class="video-list" id="video-list"></ul>
     </div>
@@ -229,28 +233,41 @@
     let player;
 
     const categories = [
-    "Alternative Songs Karaoke",
-    "2000's songs Karaoke",
-    "90's Songs Karaoke",
-    "Rock Songs Karaoke",
-    "OPM Songs Karaoke",
-    "Rock songs Karaoke"
+    "Alternative Songs",
+    "2000's songs",
+    "90's Songs",
+    "Rock Songs",
+    "OPM Songs",
+    "Rock songs",
+    "Pop Songs",
+    "Love Songs",
+    "Rap Songs",
+    "Country Songs",
+    "Boyband Songs",
     ];
 
     let searchCount = 0;
 
-    function fetchSuggestedSongs() {
+    function fetchSuggestedSongs(origin) {
     // Increment the search count
     searchCount++;
-
+    console.log('origin = ' +origin);
     // Check if it's the 1st search or every 10th search
-    if (searchCount === 1 || searchCount % 10 === 0) {
+    if (searchCount === 1 || searchCount % 5 === 0|| origin === 'auto') {
         // Get the category for this search
-        const categoryIndex = Math.floor((searchCount - 1) / 10) % categories.length;
+        const categoryIndex = Math.floor(Math.random() * categories.length);
         const category = categories[categoryIndex];
-
+        
         // Perform the search using the category
         fetchYouTubeSearchResults(category, 'suggested-videos');
+        setTimeout(() => {
+        // Get the suggested songs list element
+        const suggestedSongsList = document.getElementById('right-reserved-songs-half');
+        //console.log(suggestedSongsList);
+        // Scroll the suggested songs list to the bottom smoothly
+        const duration = 60000; // Duration of each scroll animation in milliseconds
+        alternateSmoothScroll(suggestedSongsList, duration);
+        }, 30000);
     }
 }
 
@@ -269,7 +286,86 @@
         rightSection.style.width = rightSectionWidth + 'px';
     }
 
-    const apiKeys = ['AIzaSyBw8YJYBsq2wBHafYpAUhncN98Mg7YYmRM', 'AIzaSyBfjtDjII62pyMRA6_Nx66gPkNk8ORg4Z0', 'AIzaSyDqHQFWXmYB2PzHzTq8enfm16cnalljKE0'];
+    let scrollCount = 0;
+
+    function alternateSmoothScroll(element, duration) {
+        // Scroll up and down three times
+        if (scrollCount < 3) {
+            smoothScrollToBottom(element, duration, () => {
+                setTimeout(() => {
+                    smoothScrollToTop(element, duration, () => {
+                        setTimeout(() => {
+                            scrollCount++;
+                            alternateSmoothScroll(element, duration);
+                        }, 1000); // Wait for 1 second before starting next scroll
+                    });
+                }, 1000); // Wait for 1 second before scrolling to top
+            });
+        } else {
+            // After scrolling up and down three times, introduce a delay and trigger fetchSuggestedSongs
+            setTimeout(() => {
+                console.log('Fetching suggested songs...');
+                scrollCount = 0; // Reset the scroll count
+                console.log('scrollCount = ' +scrollCount);
+                fetchSuggestedSongs('auto');
+            }, 5000); // Wait for 5 seconds before fetching suggested songs
+        }
+    }
+    function smoothScrollToBottom(element, duration, callback) {
+        const scrollHeight = element.scrollHeight;
+        const scrollTop = element.scrollTop;
+        const startTime = Date.now();
+
+        console.log('Scrolling down...');
+
+        function scroll() {
+            const elapsedTime = Date.now() - startTime;
+            const progress = Math.min(elapsedTime / duration, 1);
+            const targetScrollTop = scrollHeight - element.clientHeight;
+
+            element.scrollTop = scrollTop + progress * (targetScrollTop - scrollTop);
+
+            if (progress < 1) {
+                requestAnimationFrame(scroll);
+            } else {
+                // Animation finished, execute the callback
+                if (callback) {
+                    callback();
+                }
+            }
+        }
+
+        requestAnimationFrame(scroll);
+        }
+
+
+function smoothScrollToTop(element, duration, callback) {
+    const scrollTop = element.scrollTop;
+    const startTime = Date.now();
+
+    console.log('Scrolling up...')
+    function scroll() {
+        const elapsedTime = Date.now() - startTime;
+        const progress = Math.min(elapsedTime / duration, 1);
+
+        element.scrollTop = scrollTop * (1 - progress); // Scroll back up
+
+        if (progress < 1) {
+            requestAnimationFrame(scroll);
+        } else {
+            // Animation finished, execute the callback
+            if (callback) {
+                callback();
+            }
+        }
+    }
+
+    requestAnimationFrame(scroll);
+}
+
+
+
+    const apiKeys = ['AIzaSyBw8YJYBsq2wBHafYpAUhncN98Mg7YYmRM', 'AIzaSyBfjtDjII62pyMRA6_Nx66gPkNk8ORg4Z0', 'AIzaSyDqHQFWXmYB2PzHzTq8enfm16cnalljKE0', 'AIzaSyDAuiTHj5zY6rh0TSzmDcKGoDmjNDlAEbI'];
     let currentApiKeyIndex = 0; // Initialize the index to 0
     
 
@@ -277,14 +373,25 @@
     function fetchYouTubeSearchResults(query, targetListId) {
     const searchButton = document.querySelector('.search-button');
     // Update the search button text to indicate searching
-    searchButton.innerText = `Searching '${query}'...`;
+    searchButton.innerText = `Searching Please Wait...`;
     const apiKey = apiKeys[currentApiKeyIndex]; // Get the current API key
     currentApiKeyIndex = (currentApiKeyIndex + 1) % apiKeys.length; // Move to the next API key or loop back to the first one
-
+    var maxResults = 30; // Maximum number of results to fetch
+    if (query.includes('-k ')) {
+        query = query;
+    } else {
+        query = query + " karaoke";
+    }
+    
+    if (targetListId === 'suggested-videos') {
+        // Limit the number of results for suggested videos
+        maxResults = 50;
+    }
+    
     // Define the IDs of the channels to be excluded
     const excludedChannels = ['UCwTRjvjVge51X-ILJ4i22ew', 'UCbqcG1rdt9LMwOJN4PyGTKg', 'UCh7Or5kEc7XGqVUspaYlHDA', 'UCEPMr38BayMI5A_bXTe1Mag', 'UCqh7JrHXYav2_kk5Ag793BA', 'UCwzfME3DQ3Z3YgYypHbKExg', 'UCMh_iT_SIlsWEGXCwM__yZQ']; // Add more channel IDs as needed
 
-    const url = 'https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=30&q=' + query + '&key=' + apiKey;
+    const url = 'https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=' + maxResults + '&q=' + query + '&key=' + apiKey;
 
     fetch(url)
         .then(response => response.json())
@@ -320,12 +427,12 @@
                 }
             });
             // Update the search button text back to "Search" after displaying results
-            searchButton.innerText = 'Search';
+            searchButton.innerText = 'Karaoke Search';
         })
         .catch(error => {
             console.alert('Error fetching YouTube search results:', error);
             // Update the search button text back to "Search" in case of error
-            searchButton.innerText = 'Search';
+            searchButton.innerText = 'Karaoke Search';
         });
 }
 
